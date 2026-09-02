@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+  <title><%= title %> | XXXX GOLD</title>
+
+  <link
+    rel="stylesheet"
+    href="/css/admin/admin.css"
+  >
+</head>
+
+<body>
+  <div class="admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: "orders",
+      adminUser
+    }) %>
+
+    <main class="admin-main">
+      <%- include("partials/topbar", {
+        pageTitle: "جزئیات سفارش",
+        pageSubtitle: "اطلاعات کامل سفارش و وضعیت پرداخت"
+      }) %>
+
+      <div
+        id="orderDetailsPage"
+        data-order-id="<%= orderId %>"
+      ></div>
+
+      <section class="order-top-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>اطلاعات سفارش</h2>
+            </div>
+          </div>
+
+          <dl
+            class="meta-list"
+            id="orderMeta"
+          ></dl>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>اطلاعات مشتری</h2>
+            </div>
+          </div>
+
+          <dl
+            class="meta-list"
+            id="customerMeta"
+          ></dl>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>مدیریت وضعیت</h2>
+            </div>
+          </div>
+
+          <form
+            id="orderStatusForm"
+            class="stack-form"
+          >
+            <label class="field">
+              <span>وضعیت سفارش</span>
+
+              <select name="status">
+                <option value="pending">
+                  در انتظار
+                </option>
+
+                <option value="confirmed">
+                  تأییدشده
+                </option>
+
+                <option value="cancelled">
+                  لغوشده
+                </option>
+
+                <option value="expired">
+                  منقضی‌شده
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>وضعیت پرداخت</span>
+
+              <select name="paymentStatus">
+                <option value="unpaid">
+                  پرداخت‌نشده
+                </option>
+
+                <option value="pending">
+                  در انتظار پرداخت
+                </option>
+
+                <option value="paid">
+                  پرداخت‌شده
+                </option>
+
+                <option value="failed">
+                  ناموفق
+                </option>
+
+                <option value="refunded">
+                  برگشت‌خورده
+                </option>
+              </select>
+            </label>
+
+            <button
+              class="btn btn-gold full-btn"
+              id="saveOrderStatus"
+            >
+              ذخیره وضعیت
+            </button>
+          </form>
+        </article>
+      </section>
+
+      <section
+        class="panel order-address-panel hidden"
+        id="shippingAddressPanel"
+      >
+        <div class="panel-head">
+          <div>
+            <h2>آدرس ارسال</h2>
+          </div>
+        </div>
+
+        <div
+          id="shippingAddress"
+          class="shipping-address-box"
+        ></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>اقلام سفارش</h2>
+          </div>
+        </div>
+
+        <div
+          class="order-items"
+          id="orderItems"
+        ></div>
+      </section>
+    </main>
+  </div>
+
+  <%- include("partials/scripts") %>
+
+  <script src="/js/admin/order-details.js"></script>
+</body>
+</html>
