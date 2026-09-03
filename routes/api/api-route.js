@@ -14,6 +14,7 @@ const goldPricingRouter = require("./product-routes/goldPricing-route");
 const cartRouter = require("./shopping-routes/cart-route");
 const checkoutRouter = require("./shopping-routes/checkout-route");
 const orderRouter = require("./shopping-routes/order-route");
+const wishlistRouter = require("./shopping-routes/wishlist-route");
 
 const router = express.Router();
 
@@ -31,5 +32,6 @@ router.use("/goldPricing", goldPricingRouter);
 router.use("/cart", cartRouter);
 router.use("/checkout", checkoutRouter);
 router.use("/orders", orderRouter);
+router.use("/wishlists", wishlistRouter);
 
 module.exports = router;
