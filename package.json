@@ -1,13 +1,14 @@
 {
-  "name": "gold-store",
+  "name": "gold-store-backend-adminpanel-dashboard",
   "version": "1.0.0",
-  "description": "Backend for xxxxgold jewelry store",
+  "description": "Gold and jewelry e-commerce backend API with admin panel, dynamic gold pricing, orders, wishlist and payment flow",
   "main": "app.js",
   "type": "commonjs",
   "scripts": {
     "dev": "nodemon app.js",
     "start": "node app.js",
-    "seed:admin": "node scripts/seed-admin.js"
+    "seed:admin": "node scripts/seed-admin.js",
+    "migrate:payments": "node scripts/migrate-payment-flow.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -28,15 +29,26 @@
   "devDependencies": {
     "nodemon": "^3.1.14"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "nodejs",
+    "express",
+    "mongodb",
+    "mongoose",
+    "ecommerce",
+    "gold",
+    "jewelry",
+    "admin-panel",
+    "payment",
+    "zarinpal"
+  ],
+  "author": "Behnam Mohamadi",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BehnamMohamadi/gold-store.git"
+    "url": "git+https://github.com/BehnamMohamadi/gold-store-backend-adminpanel-dashboard.git"
   },
   "bugs": {
-    "url": "https://github.com/BehnamMohamadi/gold-store/issues"
+    "url": "https://github.com/BehnamMohamadi/gold-store-backend-adminpanel-dashboard/issues"
   },
-  "homepage": "https://github.com/BehnamMohamadi/gold-store#readme"
+  "homepage": "https://github.com/BehnamMohamadi/gold-store-backend-adminpanel-dashboard#readme"
 }

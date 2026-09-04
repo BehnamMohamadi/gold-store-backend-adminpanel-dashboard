@@ -1,5 +1,7 @@
 const Order = require("../../models/shopping-models/order-model");
 
+const Payment = require("../../models/shopping-models/payment-model");
+
 const { prepareCurrentOrder } = require("../../services/shopping-services/order-service");
 
 const { ApiFeatures } = require("../../utils/api-features");
@@ -11,11 +13,13 @@ const { catchAsync } = require("../../utils/catch-async");
 const prepareOrder = catchAsync(async (req, res) => {
   const { order, created } = await prepareCurrentOrder(
     req.user._id,
+
     req.body?.addressId || null,
   );
 
   res.status(created ? 201 : 200).json({
     status: "success",
+
     data: {
       order,
     },
@@ -33,6 +37,7 @@ const getMyOrders = catchAsync(async (req, res) => {
     Order.find({
       user: req.user._id,
     }),
+
     query,
   )
     .filter()
@@ -44,16 +49,23 @@ const getMyOrders = catchAsync(async (req, res) => {
 
   const total = await Order.countDocuments({
     ...features.filterObject,
+
     user: req.user._id,
   });
 
   res.status(200).json({
     status: "success",
+
     page: features.page,
+
     perPage: features.limit,
+
     total,
+
     totalPages: Math.ceil(total / features.limit),
+
     results: orders.length,
+
     data: {
       orders,
     },
@@ -71,10 +83,12 @@ const getMyOrderHistory = catchAsync(async (req, res) => {
   const features = new ApiFeatures(
     Order.find({
       user: req.user._id,
+
       status: {
         $ne: "pending",
       },
     }),
+
     query,
   )
     .filter()
@@ -86,7 +100,9 @@ const getMyOrderHistory = catchAsync(async (req, res) => {
 
   const total = await Order.countDocuments({
     ...features.filterObject,
+
     user: req.user._id,
+
     status: {
       $ne: "pending",
     },
@@ -94,11 +110,17 @@ const getMyOrderHistory = catchAsync(async (req, res) => {
 
   res.status(200).json({
     status: "success",
+
     page: features.page,
+
     perPage: features.limit,
+
     total,
+
     totalPages: Math.ceil(total / features.limit),
+
     results: orders.length,
+
     data: {
       orders,
     },
@@ -108,15 +130,17 @@ const getMyOrderHistory = catchAsync(async (req, res) => {
 const getMyOrder = catchAsync(async (req, res, next) => {
   const order = await Order.findOne({
     _id: req.params.orderId,
+
     user: req.user._id,
   });
 
   if (!order) {
-    return next(new AppError(404, "order not found"));
+    return next(new AppError(404, "order not found", null, "ORDER_NOT_FOUND"));
   }
 
   res.status(200).json({
     status: "success",
+
     data: {
       order,
     },
@@ -126,28 +150,61 @@ const getMyOrder = catchAsync(async (req, res, next) => {
 const cancelOrder = catchAsync(async (req, res, next) => {
   const order = await Order.findOne({
     _id: req.params.orderId,
+
     user: req.user._id,
   });
 
   if (!order) {
-    return next(new AppError(404, "order not found"));
+    return next(new AppError(404, "order not found", null, "ORDER_NOT_FOUND"));
   }
 
   if (order.status !== "pending") {
-    return next(new AppError(400, "only pending order can be cancelled"));
+    return next(
+      new AppError(
+        400,
+
+        "only pending order can be cancelled",
+
+        null,
+
+        "ORDER_NOT_CANCELLABLE",
+      ),
+    );
   }
 
   if (order.paymentStatus === "pending") {
-    return next(new AppError(400, "order with pending payment cannot be cancelled"));
+    return next(
+      new AppError(
+        400,
+
+        "order with pending payment cannot be cancelled",
+
+        null,
+
+        "PAYMENT_ALREADY_IN_PROGRESS",
+      ),
+    );
   }
 
   if (order.paymentStatus === "paid") {
-    return next(new AppError(400, "paid order cannot be cancelled"));
+    return next(
+      new AppError(
+        400,
+
+        "paid order cannot be cancelled",
+
+        null,
+
+        "ORDER_ALREADY_PAID",
+      ),
+    );
   }
 
   order.status = "cancelled";
 
-  await order.save();
+  await order.save({
+    validateModifiedOnly: true,
+  });
 
   res.status(204).send();
 });
@@ -158,6 +215,7 @@ const getAllOrders = catchAsync(async (req, res) => {
       "user",
       ["firstname", "lastname", "phonenumber", "email"].join(" "),
     ),
+
     req.query,
   )
     .filter()
@@ -169,15 +227,73 @@ const getAllOrders = catchAsync(async (req, res) => {
 
   const total = await Order.countDocuments(features.filterObject);
 
+  const orderIds = orders.map((order) => order._id);
+
+  const activeReviews = orderIds.length
+    ? await Payment.find({
+        order: {
+          $in: orderIds,
+        },
+
+        status: "paid",
+
+        requiresReview: true,
+
+        reviewStatus: {
+          $in: ["pending", "resolving"],
+        },
+      })
+        .select(
+          ["order", "reviewReason", "reviewStatus", "referenceId", "authority"].join(" "),
+        )
+        .lean()
+    : [];
+
+  const reviewMap = new Map(
+    activeReviews.map((payment) => [String(payment.order), payment]),
+  );
+
+  const ordersWithReview = orders.map((order) => {
+    const plain = order.toObject();
+
+    const review = reviewMap.get(String(order._id));
+
+    plain.paymentReview = review
+      ? {
+          active: true,
+
+          paymentId: review._id,
+
+          status: review.reviewStatus,
+
+          reason: review.reviewReason,
+
+          referenceId: review.referenceId,
+
+          authority: review.authority,
+        }
+      : {
+          active: false,
+        };
+
+    return plain;
+  });
+
   res.status(200).json({
     status: "success",
+
     page: features.page,
+
     perPage: features.limit,
+
     total,
+
     totalPages: Math.ceil(total / features.limit),
-    results: orders.length,
+
+    results: ordersWithReview.length,
+
     data: {
-      orders,
+      orders: ordersWithReview,
     },
   });
 });
@@ -189,11 +305,12 @@ const getOrderForAdmin = catchAsync(async (req, res, next) => {
   );
 
   if (!order) {
-    return next(new AppError(404, "order not found"));
+    return next(new AppError(404, "order not found", null, "ORDER_NOT_FOUND"));
   }
 
   res.status(200).json({
     status: "success",
+
     data: {
       order,
     },
@@ -204,16 +321,38 @@ const updateOrderForAdmin = catchAsync(async (req, res, next) => {
   const order = await Order.findById(req.params.orderId);
 
   if (!order) {
-    return next(new AppError(404, "order not found"));
+    return next(new AppError(404, "order not found", null, "ORDER_NOT_FOUND"));
   }
 
-  if (req.body.status !== undefined) {
-    order.status = req.body.status;
+  if (req.body.status === "confirmed") {
+    const activeReview = await Payment.exists({
+      order: order._id,
+
+      status: "paid",
+
+      requiresReview: true,
+
+      reviewStatus: {
+        $in: ["pending", "resolving"],
+      },
+    });
+
+    if (activeReview) {
+      return next(
+        new AppError(
+          409,
+
+          "payment review must be resolved before confirming this order",
+
+          null,
+
+          "PAYMENT_REVIEW_REQUIRED",
+        ),
+      );
+    }
   }
 
-  if (req.body.paymentStatus !== undefined) {
-    order.paymentStatus = req.body.paymentStatus;
-  }
+  order.status = req.body.status;
 
   await order.save({
     validateModifiedOnly: true,
@@ -221,6 +360,7 @@ const updateOrderForAdmin = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
+
     data: {
       order,
     },

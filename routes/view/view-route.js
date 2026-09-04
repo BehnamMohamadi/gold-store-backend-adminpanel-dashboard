@@ -1,5 +1,7 @@
 const express = require("express");
+
 const User = require("../../models/user-model");
+
 const { verifyAccessToken } = require("../../utils/jwt");
 
 const { protect, restrictTo } = require("../../middleware/auth-middleware");
@@ -14,11 +16,11 @@ const renderAdmin = (view, title) => (req, res) => {
 };
 
 router.get("/", (req, res) => {
-  res.render("index", { title: "xxxxgold" });
+  res.render("index", {
+    title: "xxxxgold",
+  });
 });
 
-// Admin login is public for guests.
-// If a valid authenticated admin opens it, redirect directly to /admin.
 router.get("/admin/login", async (req, res, next) => {
   try {
     const token = req.cookies?.accessToken;
@@ -26,13 +28,15 @@ router.get("/admin/login", async (req, res, next) => {
     if (token) {
       try {
         const payload = verifyAccessToken(token);
+
         const user = await User.findById(payload.sub);
 
         if (user && user.role === "admin" && user.accountStatus?.status === "active") {
           return res.redirect("/admin");
         }
       } catch {
-        // Invalid/expired cookie: keep showing login page.
+        // Invalid or expired token:
+        // keep showing login page.
       }
     }
 
@@ -45,11 +49,12 @@ router.get("/admin/login", async (req, res, next) => {
   }
 });
 
-// All admin view pages below require an authenticated admin.
 router.use("/admin", protect, restrictTo("admin"));
 
 router.get("/admin", renderAdmin("dashboard", "داشبورد مدیریت"));
+
 router.get("/admin/products", renderAdmin("products", "محصولات"));
+
 router.get("/admin/products/new", (req, res) => {
   res.render("admin/product-form", {
     title: "افزودن محصول",
@@ -57,6 +62,7 @@ router.get("/admin/products/new", (req, res) => {
     productId: "",
   });
 });
+
 router.get("/admin/products/:productId/edit", (req, res) => {
   res.render("admin/product-form", {
     title: "ویرایش محصول",
@@ -66,11 +72,17 @@ router.get("/admin/products/:productId/edit", (req, res) => {
 });
 
 router.get("/admin/categories", renderAdmin("categories", "دسته‌بندی‌ها"));
+
 router.get("/admin/subcategories", renderAdmin("subcategories", "زیردسته‌ها"));
+
 router.get("/admin/gold-pricing", renderAdmin("gold-pricing", "قیمت طلا"));
 
 router.get("/admin/orders", renderAdmin("orders", "سفارش‌ها"));
+
+router.get("/admin/payments", renderAdmin("payments", "پرداخت‌ها"));
+
 router.get("/admin/carts", renderAdmin("carts", "سبدهای خرید"));
+
 router.get("/admin/orders/:orderId", (req, res) => {
   res.render("admin/order-details", {
     title: "جزئیات سفارش",

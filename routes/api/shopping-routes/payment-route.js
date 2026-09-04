@@ -2,23 +2,20 @@ const express = require("express");
 
 const {
   createPayment,
-
   zarinpalCallback,
-
   mockPaymentSuccess,
-
   getMyPayments,
-
   getMyPayment,
-
   getAllPayments,
-
   getOrderPaymentsForAdmin,
+  resolvePaymentForAdmin,
 } = require("../../../controller/shopping-controllers/payment-controller");
 
 const { protect, restrictTo } = require("../../../middleware/auth-middleware");
 
 const { validateParam } = require("../../../middleware/validate-param");
+
+const { validate } = require("../../../middleware/validate");
 
 const {
   orderIdSchema,
@@ -26,15 +23,11 @@ const {
 
 const {
   paymentIdSchema,
+  adminResolvePaymentSchema,
 } = require("../../../validation/shopping-validations/payment-validation");
 
 const router = express.Router();
 
-/*
- * Public callback.
- *
- * عمداً قبل از router.use(protect)
- */
 router.get("/zarinpal/callback", zarinpalCallback);
 
 router.use(protect);
@@ -42,35 +35,89 @@ router.use(protect);
 /*
  * Admin
  */
-router.get("/all", restrictTo("admin"), getAllPayments);
+
+router.get(
+  "/all",
+
+  restrictTo("admin"),
+
+  getAllPayments,
+);
 
 router.get(
   "/admin/order/:orderId",
+
   restrictTo("admin"),
+
   validateParam("orderId", orderIdSchema),
+
   getOrderPaymentsForAdmin,
 );
 
 /*
- * Start payment
- * Body ندارد.
+ * Route اصلی Review.
  */
-router.post("/order/:orderId", validateParam("orderId", orderIdSchema), createPayment);
+router.patch(
+  "/admin/:paymentId/review",
+
+  restrictTo("admin"),
+
+  validateParam("paymentId", paymentIdSchema),
+
+  validate(adminResolvePaymentSchema),
+
+  resolvePaymentForAdmin,
+);
 
 /*
- * Development-only mock success
+ * Compatibility با Route قبلی.
+ * بعداً در Cleanup نهایی می‌تونیم حذفش کنیم.
+ */
+router.post(
+  "/admin/:paymentId/resolve",
+
+  restrictTo("admin"),
+
+  validateParam("paymentId", paymentIdSchema),
+
+  validate(adminResolvePaymentSchema),
+
+  resolvePaymentForAdmin,
+);
+
+/*
+ * Start Payment
+ */
+router.post(
+  "/order/:orderId",
+
+  validateParam("orderId", orderIdSchema),
+
+  createPayment,
+);
+
+/*
+ * Development mock.
  */
 router.post(
   "/mock/:paymentId/success",
+
   validateParam("paymentId", paymentIdSchema),
+
   mockPaymentSuccess,
 );
 
 /*
- * Current user's payments
+ * Current User
  */
 router.get("/", getMyPayments);
 
-router.get("/:paymentId", validateParam("paymentId", paymentIdSchema), getMyPayment);
+router.get(
+  "/:paymentId",
+
+  validateParam("paymentId", paymentIdSchema),
+
+  getMyPayment,
+);
 
 module.exports = router;

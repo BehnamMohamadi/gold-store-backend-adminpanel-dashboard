@@ -248,7 +248,14 @@ const orderSchema = new Schema(
       type: String,
 
       enum: {
-        values: ["pending", "confirmed", "cancelled", "expired"],
+        values: [
+          "pending",
+          "payment_pending",
+          "review",
+          "confirmed",
+          "cancelled",
+          "expired",
+        ],
 
         message: "invalid order status",
       },
@@ -278,6 +285,13 @@ const orderSchema = new Schema(
   },
 );
 
+/*
+ * فقط یک Order قابل ویرایش برای هر کاربر.
+ *
+ * وقتی Payment شروع می‌شود status از pending
+ * به payment_pending تغییر می‌کند و بنابراین
+ * کاربر می‌تواند Order جدیدی از Cart جدید بسازد.
+ */
 orderSchema.index(
   {
     user: 1,

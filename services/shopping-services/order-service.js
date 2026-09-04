@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 
 const Cart = require("../../models/shopping-models/cart-model");
+
 const Order = require("../../models/shopping-models/order-model");
+
 const Address = require("../../models/address-model");
 
 const GoldPricing = require("../../models/product-models/goldPricing-model");
@@ -31,12 +33,6 @@ const buildAddressSnapshot = async (userId, addressId) => {
       throw new AppError(404, "shipping address not found");
     }
   } else {
-    /*
-     * UX-friendly behavior:
-     * If the client does not explicitly send an address,
-     * use the user's default address when one exists.
-     * Existing order flow therefore does not break.
-     */
     address = await Address.findOne({
       user: userId,
       isDefault: true,
@@ -158,6 +154,7 @@ const buildOrderDataFromCart = async (userId) => {
       },
 
       unitPrice,
+
       totalPrice,
     });
   }
@@ -172,18 +169,21 @@ const buildOrderDataFromCart = async (userId) => {
 };
 
 const prepareCurrentOrder = async (userId, addressId = null) => {
+  /*
+   * فقط Order قابل ویرایش را پیدا می‌کنیم.
+   *
+   * Orderهایی که وارد payment_pending شده‌اند
+   * دیگر Current Order محسوب نمی‌شوند.
+   */
   let order = await Order.findOne({
     user: userId,
+
     status: "pending",
+
+    paymentStatus: {
+      $in: ["unpaid", "failed"],
+    },
   });
-
-  if (order && order.paymentStatus === "pending") {
-    throw new AppError(409, "order is locked for payment");
-  }
-
-  if (order && order.paymentStatus === "paid") {
-    throw new AppError(409, "order is already paid");
-  }
 
   const orderData = await buildOrderDataFromCart(userId);
 
@@ -198,11 +198,6 @@ const prepareCurrentOrder = async (userId, addressId = null) => {
 
     order.priceExpiresAt = orderData.priceExpiresAt;
 
-    /*
-     * Only replace the snapshot when an address
-     * was resolved. This preserves an already-selected
-     * address if a later cart re-sync does not send one.
-     */
     if (addressSnapshot) {
       order.shippingAddressSnapshot = addressSnapshot;
     }
@@ -248,7 +243,12 @@ const prepareCurrentOrder = async (userId, addressId = null) => {
 const getCurrentOrder = async (userId) => {
   const order = await Order.findOne({
     user: userId,
+
     status: "pending",
+
+    paymentStatus: {
+      $in: ["unpaid", "failed"],
+    },
   });
 
   if (!order) {

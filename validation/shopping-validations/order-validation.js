@@ -7,14 +7,8 @@ const prepareOrderSchema = Joi.object({
 }).unknown(false);
 
 const adminUpdateOrderSchema = Joi.object({
-  status: Joi.string().valid("pending", "confirmed", "cancelled", "expired").optional(),
-
-  paymentStatus: Joi.string()
-    .valid("unpaid", "pending", "paid", "failed", "refunded")
-    .optional(),
-})
-  .min(1)
-  .unknown(false);
+  status: Joi.string().valid("pending", "confirmed", "cancelled", "expired").required(),
+}).unknown(false);
 
 module.exports = {
   orderIdSchema,

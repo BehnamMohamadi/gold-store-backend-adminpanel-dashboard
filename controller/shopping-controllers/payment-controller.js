@@ -4,6 +4,8 @@ const {
   startPayment,
   handleZarinpalCallback,
   completeMockPayment,
+  expireStalePayments,
+  resolvePaymentReview,
 } = require("../../services/shopping-services/payment-service");
 
 const { ApiFeatures } = require("../../utils/api-features");
@@ -57,17 +59,24 @@ const mockPaymentSuccess = catchAsync(async (req, res) => {
 });
 
 const getMyPayments = catchAsync(async (req, res) => {
+  await expireStalePayments();
+
   const query = {
     ...req.query,
   };
 
   delete query.user;
   delete query.order;
+  delete query.requiresReview;
+  delete query.reviewStatus;
 
   const features = new ApiFeatures(
     Payment.find({
       user: req.user._id,
-    }).populate("order", "orderNumber status paymentStatus totalAmount"),
+    }).populate(
+      "order",
+      ["orderNumber", "status", "paymentStatus", "totalAmount"].join(" "),
+    ),
 
     query,
   )
@@ -104,14 +113,19 @@ const getMyPayments = catchAsync(async (req, res) => {
 });
 
 const getMyPayment = catchAsync(async (req, res, next) => {
+  await expireStalePayments();
+
   const payment = await Payment.findOne({
     _id: req.params.paymentId,
 
     user: req.user._id,
-  }).populate("order", "orderNumber status paymentStatus totalAmount");
+  }).populate(
+    "order",
+    ["orderNumber", "status", "paymentStatus", "totalAmount"].join(" "),
+  );
 
   if (!payment) {
-    return next(new AppError(404, "payment not found"));
+    return next(new AppError(404, "payment not found", null, "PAYMENT_NOT_FOUND"));
   }
 
   res.status(200).json({
@@ -124,10 +138,17 @@ const getMyPayment = catchAsync(async (req, res, next) => {
 });
 
 const getAllPayments = catchAsync(async (req, res) => {
+  await expireStalePayments();
+
   const features = new ApiFeatures(
     Payment.find()
-      .populate("user", "firstname lastname phonenumber email")
-      .populate("order", "orderNumber status paymentStatus totalAmount"),
+      .populate("user", ["firstname", "lastname", "phonenumber", "email"].join(" "))
+      .populate(
+        "order",
+        ["orderNumber", "status", "paymentStatus", "totalAmount"].join(" "),
+      )
+      .populate("resolvedBy", ["firstname", "lastname", "email"].join(" "))
+      .populate("reviewHistory.actor", ["firstname", "lastname", "email"].join(" ")),
 
     req.query,
   )
@@ -160,10 +181,14 @@ const getAllPayments = catchAsync(async (req, res) => {
 });
 
 const getOrderPaymentsForAdmin = catchAsync(async (req, res) => {
+  await expireStalePayments();
+
   const payments = await Payment.find({
     order: req.params.orderId,
   })
-    .populate("user", "firstname lastname phonenumber email")
+    .populate("user", ["firstname", "lastname", "phonenumber", "email"].join(" "))
+    .populate("resolvedBy", ["firstname", "lastname", "email"].join(" "))
+    .populate("reviewHistory.actor", ["firstname", "lastname", "email"].join(" "))
     .sort("-createdAt");
 
   res.status(200).json({
@@ -177,6 +202,40 @@ const getOrderPaymentsForAdmin = catchAsync(async (req, res) => {
   });
 });
 
+const resolvePaymentForAdmin = catchAsync(async (req, res) => {
+  const payment = await resolvePaymentReview({
+    paymentId: req.params.paymentId,
+
+    adminUserId: req.user._id,
+
+    resolution: req.body.resolution,
+  });
+
+  await payment.populate([
+    {
+      path: "resolvedBy",
+
+      select: "firstname lastname email",
+    },
+
+    {
+      path: "reviewHistory.actor",
+
+      select: "firstname lastname email",
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+
+    message: "payment review updated successfully",
+
+    data: {
+      payment,
+    },
+  });
+});
+
 module.exports = {
   createPayment,
   zarinpalCallback,
@@ -185,4 +244,5 @@ module.exports = {
   getMyPayment,
   getAllPayments,
   getOrderPaymentsForAdmin,
+  resolvePaymentForAdmin,
 };
